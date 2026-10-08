@@ -4,7 +4,7 @@
 
 A 16-bit CPU, RAM, video RAM, a 16-core GPU, an assembler, a tiny operating system and Snake, all built from a single kind of part (the two-input NAND gate) and simulated gate by gate in your browser. You can play the game, then zoom from the circuit board through the chips down to one gate and watch the signals move while it runs.
 
-**[▶ Try it in your browser](https://YOUR-NAME.github.io/nand16/)** · works best on a desktop · 中文说明见[下方](#中文说明)
+**[▶ Try it in your browser](https://twelveand0.github.io/nand16/)** · works best on a desktop · 中文说明见[下方](#中文说明)
 
 ![NAND-16: the whole board, a single NAND gate with its transistors, the 16 shader cores, and the screen they draw](docs/hero.jpg)
 
@@ -92,7 +92,7 @@ MIT, see [LICENSE](LICENSE).
 
 16 位 CPU、内存、显存、16 核显卡、汇编器、微型操作系统和贪吃蛇，全部只用一种元件（两输入与非门）搭成，在浏览器里逐门仿真。你可以直接玩游戏，也可以从电路板一路放大，穿过芯片看到单个门，看着信号在运行中流动。
 
-**[▶ 在浏览器里打开](https://YOUR-NAME.github.io/nand16/)**（建议用电脑打开；界面会按浏览器语言自动切换中英文）
+**[▶ 在浏览器里打开](https://twelveand0.github.io/nand16/)**（建议用电脑打开；界面会按浏览器语言自动切换中英文）
 
 - **怎么验证它是真的**：放大到任何一个门，点它，选"卡在 0"。坏掉加法器里的一个门，蛇会乱跑；坏掉显存里的一个锁存器，屏幕上那个点就再也改不了。开发时 CPU 和 GPU 都和独立的参考模型逐周期对拍过，运行 `npm test` 可以自己复现。
 - **里面有什么**：见上方表格。另有门级慢放、60 秒导览、着色器实验室（通过显卡上的调试针把你写的程序一位一位烧进 GPU），以及从 ALU 输出线上读出旋律的配乐。
