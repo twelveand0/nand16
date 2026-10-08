@@ -1,0 +1,383 @@
+<meta charset="utf-8">
+<title>NAND-16</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Martian+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+:root {
+  color-scheme: dark;
+  --bg: #07090f;
+  --panel: rgba(11, 15, 25, 0.9);
+  --panel-solid: #0c111c;
+  --line: #1f2b42;
+  --line-2: #2c3c5c;
+  --ink: #ebe6d9;
+  --muted: #8a93a7;
+  --faint: #5b6479;
+  --amber: #ffb547;
+  --amber-dim: #8a5d20;
+  --teal: #5fc8d4;
+  --fault: #ff4d6d;
+  --display: "Chakra Petch", "Noto Sans SC", system-ui, sans-serif;
+  --mono: "Martian Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --body: "Noto Sans SC", "Chakra Petch", system-ui, sans-serif;
+  --r: 6px;
+}
+html, body { height: 100%; }
+html[lang="en"] { --body: "IBM Plex Sans", "Noto Sans SC", system-ui, sans-serif; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; overflow: hidden; }
+* { box-sizing: border-box; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+
+#app { position: relative; height: 100%; display: grid; grid-template-columns: 1fr 384px; }
+#stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+#gl { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; }
+#gl.dragging { cursor: grabbing; }
+
+/* ---------- heads-up display over the 3D stage ---------- */
+.hud { position: absolute; pointer-events: none; }
+.hud > * { pointer-events: auto; }
+#brand { top: 14px; left: 16px; right: 16px; display: flex; flex-direction: column; gap: 8px; }
+#brand h1 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 30px; letter-spacing: 0.04em; line-height: 1; display: flex; align-items: baseline; gap: 12px; }
+#brand h1 small { font-family: var(--mono); font-weight: 400; font-size: 11px; letter-spacing: 0.02em; color: var(--muted); }
+#brand h1 .g { color: var(--amber); }
+.brand-row { display: flex; gap: 8px; align-items: center; }
+.music { display: inline-flex; align-items: center; gap: 7px; background: rgba(10, 14, 24, 0.75); border: 1px solid var(--line-2); color: var(--muted); border-radius: 999px; padding: 4px 11px 4px 9px; font-size: 12px; cursor: pointer; }
+.music:hover { color: var(--ink); border-color: var(--amber-dim); }
+.music.on { color: var(--amber); border-color: var(--amber-dim); }
+.music .eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; }
+.music .eq i { width: 2px; height: 4px; background: currentColor; border-radius: 1px; }
+.music.on .eq i { animation: eqb 0.9s ease-in-out infinite; }
+.music.on .eq i:nth-child(2) { animation-delay: -0.3s; } .music.on .eq i:nth-child(3) { animation-delay: -0.6s; }
+@keyframes eqb { 0%, 100% { height: 3px; } 50% { height: 11px; } }
+@media (prefers-reduced-motion: reduce) { .music.on .eq i { animation: none; height: 8px; } }
+.music-row { align-items: center; }
+.music-row .slider { flex: 1; min-width: 160px; }
+.music-note { margin: 0; font-size: 12px; line-height: 1.65; color: var(--muted); }
+#crumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; font-family: var(--mono); font-size: 11px; max-width: 100%; }
+#crumbs button { background: rgba(10, 14, 24, 0.7); border: 1px solid var(--line); color: var(--muted); padding: 4px 8px; border-radius: 4px; cursor: pointer; white-space: nowrap; }
+#crumbs button:hover { color: var(--ink); border-color: var(--line-2); }
+#crumbs button.cur { color: var(--amber); border-color: var(--amber-dim); }
+#crumbs .sep { color: var(--faint); padding: 0 2px; }
+
+#views { top: 14px; right: 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+#views button { background: rgba(10, 14, 24, 0.72); border: 1px solid var(--line); color: var(--muted); font-family: var(--display); font-weight: 600; font-size: 12px; letter-spacing: 0.06em; padding: 5px 10px; border-radius: 4px; cursor: pointer; }
+#views button:hover { color: var(--ink); border-color: var(--teal); }
+
+#focus { left: 16px; bottom: 16px; width: min(440px, calc(100% - 32px)); background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; backdrop-filter: blur(6px); display: grid; gap: 6px; }
+#focus .top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+#focus h2 { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 700; letter-spacing: 0.03em; }
+#focus .count { font-family: var(--mono); font-size: 11px; color: var(--amber); white-space: nowrap; }
+#focus p { margin: 0; color: #c9c5ba; line-height: 1.6; font-size: 13px; }
+#focus .hint { color: var(--faint); font-size: 12px; }
+
+#xray { position: absolute; width: 260px; background: var(--panel-solid); border: 1px solid var(--amber-dim); border-radius: var(--r); padding: 10px 12px 12px; pointer-events: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+#xray .t { padding-right: 18px; display: flex; justify-content: space-between; align-items: baseline; font-family: var(--display); font-weight: 700; letter-spacing: 0.04em; }
+#xray .t span { font-family: var(--mono); font-weight: 400; font-size: 10px; color: var(--muted); }
+#xray .path { font-family: var(--mono); font-size: 10px; color: var(--muted); margin: 2px 0 6px; word-break: break-all; }
+#xray svg { width: 100%; height: auto; display: block; }
+#xray .eq { font-family: var(--mono); font-size: 11px; margin-top: 4px; color: var(--ink); }
+#xray .row { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+#xray .row button { flex: 1; background: #151b2a; border: 1px solid var(--line-2); border-radius: 4px; padding: 5px 6px; font-size: 12px; cursor: pointer; }
+#xray .row button:hover { border-color: var(--fault); color: #ffd0d8; }
+#xray .row button.fix:hover { border-color: var(--teal); color: #d8f7fa; }
+#xray .close { position: absolute; top: 4px; right: 6px; background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+/* ---------- side panel ---------- */
+#panel { background: var(--panel-solid); border-left: 1px solid var(--line); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; min-height: 0; }
+.sec { padding: 14px 16px; border-bottom: 1px solid var(--line); display: grid; gap: 10px; }
+.sec h3 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; align-items: baseline; }
+.sec h3 em { font-style: normal; font-family: var(--mono); letter-spacing: 0; text-transform: none; color: var(--faint); font-size: 10px; }
+
+.monitor { position: relative; background: #05060a; border: 1px solid #1b2130; border-radius: 8px; padding: 10px; box-shadow: inset 0 0 0 1px #0f131c; }
+#lcd { width: 100%; height: auto; display: block; image-rendering: auto; aspect-ratio: 2 / 1; }
+.monitor .cap { display: flex; justify-content: space-between; margin-top: 6px; font-family: var(--mono); font-size: 9.5px; color: var(--faint); }
+.monitor.focused { border-color: var(--amber-dim); }
+
+.pad { display: grid; grid-template-columns: repeat(3, 44px) 1fr 52px 52px; grid-template-rows: 36px 36px; gap: 6px; align-items: center; user-select: none; -webkit-user-select: none; }
+.pad button { height: 100%; background: #151b29; border: 1px solid var(--line-2); border-radius: 6px; font-family: var(--display); font-weight: 700; font-size: 14px; cursor: pointer; touch-action: none; }
+.pad button.on, .pad button:active { background: var(--amber); color: #20140a; border-color: var(--amber); }
+.pad .up { grid-column: 2; grid-row: 1; } .pad .left { grid-column: 1; grid-row: 2; } .pad .down { grid-column: 2; grid-row: 2; } .pad .right { grid-column: 3; grid-row: 2; }
+.pad .ba { grid-column: 5; grid-row: 1 / 3; border-radius: 50%; height: 52px; } .pad .bb { grid-column: 6; grid-row: 1 / 3; border-radius: 50%; height: 52px; }
+.keys-help { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.keys-help kbd { font-family: var(--mono); font-size: 10.5px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; color: var(--ink); background: #121826; }
+
+.ctrl-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.btn { background: #151b29; border: 1px solid var(--line-2); border-radius: 5px; padding: 6px 10px; cursor: pointer; font-size: 12.5px; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--teal); }
+.btn.primary { background: var(--amber); color: #1d1208; border-color: var(--amber); font-weight: 700; }
+.seg { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line-2); border-radius: 5px; overflow: hidden; }
+.seg button { background: #121826; border: 0; border-right: 1px solid var(--line); padding: 7px 2px; font-size: 12px; cursor: pointer; color: var(--muted); }
+.seg button:last-child { border-right: 0; }
+.seg button.on { background: #1f2a40; color: var(--amber); font-weight: 700; }
+.slider { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+.slider input { flex: 1; accent-color: var(--amber); }
+.slider output { font-family: var(--mono); font-size: 11px; color: var(--ink); min-width: 70px; text-align: right; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stat { background: #0f1522; border: 1px solid var(--line); border-radius: 5px; padding: 6px 8px; min-width: 0; }
+.stat b { display: block; font-family: var(--mono); font-weight: 500; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat span { font-size: 10.5px; color: var(--muted); }
+.phase { font-family: var(--mono); font-size: 11px; color: var(--teal); min-height: 1.4em; }
+
+.cpu { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.cpu dt { color: var(--muted); }
+.cpu dd { margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpu dd .ins { color: var(--amber); }
+.regs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; }
+.regs div { background: #0f1522; border: 1px solid var(--line); border-radius: 4px; padding: 4px 6px; display: flex; justify-content: space-between; gap: 4px; }
+.regs div span { color: var(--faint); }
+.regs div.chg { border-color: var(--amber-dim); }
+.flags { display: flex; gap: 4px; }
+.flags span { font-family: var(--mono); font-size: 11px; width: 24px; text-align: center; border: 1px solid var(--line); border-radius: 3px; color: var(--faint); }
+.flags span.on { color: #1d1208; background: var(--amber); border-color: var(--amber); }
+
+.glanes { display: grid; grid-template-columns: repeat(8, 1fr); gap: 3px; font-family: var(--mono); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.glanes .lane { background: #0f1522; border: 1px solid var(--line); border-radius: 3px; padding: 3px 0 2px; display: grid; justify-items: center; line-height: 1.25; }
+.glanes .lane b { font-weight: 500; }
+.glanes .lane span { font-size: 9px; color: var(--faint); }
+.glanes .lane.px { border-color: var(--amber); box-shadow: inset 0 -2px 0 var(--amber); }
+.glanes .lane.off { opacity: 0.32; }
+.gprog summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+#g-prog { font-family: var(--mono); font-size: 11px; line-height: 1.55; margin-top: 6px; white-space: pre; overflow-x: auto; }
+#g-prog .cur { background: rgba(255, 181, 71, 0.14); box-shadow: inset 3px 0 0 var(--amber); color: var(--amber); }
+.lab-top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.lab-top select { flex: 1; min-width: 0; background: #121826; color: var(--ink); border: 1px solid var(--line-2); border-radius: 5px; padding: 6px 8px; font: inherit; font-size: 12.5px; }
+.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); }
+#lab-src { width: 100%; resize: vertical; min-height: 180px; background: #0a0e18; color: #f0d9aa; border: 1px solid var(--line-2); border-radius: 6px; padding: 10px; font-family: var(--mono); font-size: 11.5px; line-height: 1.55; tab-size: 8; }
+#lab-src:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
+.lab-msg { font-family: var(--mono); font-size: 11px; line-height: 1.55; color: var(--muted); white-space: pre-wrap; min-height: 1.5em; }
+.lab-msg.err { color: var(--fault); }
+.lab-msg.ok { color: var(--teal); }
+.lab-msg.busy { color: var(--amber); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); padding: 0 12px; position: sticky; top: 0; background: var(--panel-solid); z-index: 2; }
+.tabs button { background: none; border: 0; border-bottom: 2px solid transparent; padding: 10px 10px 8px; cursor: pointer; color: var(--muted); font-size: 13px; }
+.tabs button.on { color: var(--ink); border-color: var(--amber); }
+.tab { display: none; }
+.tab.on { display: block; }
+#code { font-family: var(--mono); font-size: 11px; line-height: 1.55; margin: 0; padding: 8px 0 20px; white-space: pre; overflow: auto; max-height: min(62vh, 560px); position: relative; }
+#code .l { display: block; padding: 0 14px 0 0; }
+#code .l .a { display: inline-block; width: 44px; text-align: right; padding-right: 10px; color: var(--faint); }
+#code .l.cur { background: rgba(255, 181, 71, 0.14); box-shadow: inset 3px 0 0 var(--amber); }
+#code .l.cur .a { color: var(--amber); }
+#code .c { color: #56657f; }
+#code .lb { color: var(--teal); }
+#code .mn { color: #f0d9aa; }
+.follow { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); padding: 8px 16px 0; }
+
+.story { padding: 12px 16px 24px; display: grid; gap: 14px; font-size: 13px; line-height: 1.65; color: #cdc9be; }
+.story h4 { margin: 0 0 2px; font-family: var(--display); font-weight: 700; font-size: 14px; letter-spacing: 0.02em; color: var(--ink); display: flex; gap: 8px; align-items: baseline; }
+.story h4 i { font-style: normal; font-family: var(--mono); font-size: 10px; color: var(--amber); font-weight: 400; }
+.story p { margin: 0; }
+.story code, .story pre { font-family: var(--mono); font-size: 11px; }
+.story pre { background: #0a0e18; border: 1px solid var(--line); border-radius: 5px; padding: 10px; overflow-x: auto; color: #f0d9aa; margin: 6px 0 0; white-space: pre; }
+.census { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; font-family: var(--mono); font-size: 11px; font-variant-numeric: tabular-nums; margin-top: 6px; }
+.census span:nth-child(even) { text-align: right; color: var(--amber); }
+table.isa { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 10.5px; margin-top: 6px; }
+table.isa td { border-top: 1px solid var(--line); padding: 3px 4px; vertical-align: top; }
+table.isa td:first-child { color: var(--amber); white-space: nowrap; }
+.isa-wrap { overflow-x: auto; }
+
+#boot { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 50; transition: opacity 0.5s; }
+#boot .box { width: min(440px, calc(100% - 32px)); display: grid; gap: 10px; }
+#boot h2 { margin: 0; font-family: var(--display); font-size: 26px; letter-spacing: 0.04em; }
+#boot ol { margin: 0; padding: 0; list-style: none; font-family: var(--mono); font-size: 12px; color: var(--muted); display: grid; gap: 4px; }
+#boot li.done { color: var(--ink); }
+#boot li.done::before { content: "✓ "; color: var(--amber); }
+#boot li.now::before { content: "▸ "; color: var(--teal); }
+#boot .err { color: var(--fault); font-family: var(--mono); font-size: 12px; white-space: pre-wrap; }
+
+
+/* ---------- guided tour ---------- */
+#tour { left: 50%; transform: translateX(-50%); bottom: 18px; width: min(640px, calc(100% - 32px)); background: rgba(9, 12, 20, 0.9); border: 1px solid var(--line-2); border-radius: 10px; padding: 14px 18px 14px; backdrop-filter: blur(8px); display: grid; gap: 6px; box-shadow: 0 12px 50px rgba(0,0,0,0.45); }
+#tour .tour-bar { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: rgba(255,255,255,0.05); border-radius: 10px 10px 0 0; overflow: hidden; }
+#tour .tour-bar i { display: block; height: 100%; width: 0; background: var(--amber); }
+#tour .tour-k { font-family: var(--mono); font-size: 10.5px; color: var(--amber); letter-spacing: 0.08em; }
+#tour h2 { margin: 0; font-family: var(--display); font-size: 24px; font-weight: 700; letter-spacing: 0.02em; line-height: 1.15; }
+#tour p { margin: 0; color: #d4d0c4; font-size: 14.5px; line-height: 1.6; }
+#tour .tour-ctl { display: flex; gap: 8px; margin-top: 6px; }
+#tour .tour-ctl .ghost { background: none; margin-left: auto; color: var(--muted); }
+#tour-btn .tri { font-size: 9px; }
+#lang { font-family: var(--display); font-weight: 600; letter-spacing: 0.04em; padding: 4px 11px; }
+body.touring #focus { display: none; }
+/* cinema: just the machine and the captions (used to record the demo video) */
+#app.cinema { grid-template-columns: 1fr; }
+#app.cinema #panel, #app.cinema #views, #app.cinema #focus, #app.cinema .brand-row, #app.cinema #crumbs, #app.cinema #tour .tour-ctl { display: none; }
+#app.cinema #tour { bottom: 26px; width: min(1180px, calc(100% - 60px)); padding: 16px 28px 20px; gap: 8px; border-radius: 14px; }
+#app.cinema #tour .tour-k { font-size: 15px; }
+#app.cinema #tour h2 { font-size: 42px; }
+#app.cinema #tour p { font-size: 25px; line-height: 1.45; }
+#app.cinema #brand { top: 22px; left: 28px; }
+#app.cinema #brand h1 { font-size: 40px; }
+#app.cinema #brand h1 small { font-size: 17px; color: #b8bfcf; }
+#app.cinema #xray { transform: scale(1.5); transform-origin: 0 0; }
+
+@media (max-width: 860px) {
+  #app { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 48%); }
+  #panel { border-left: 0; border-top: 1px solid var(--line); }
+  #brand h1 { font-size: 22px; }
+  #brand h1 small { display: none; }
+  #views { top: auto; bottom: 8px; left: 8px; right: 8px; flex-direction: row; flex-wrap: nowrap; overflow-x: auto; justify-content: flex-start; scrollbar-width: none; }
+  #views button { font-size: 11px; padding: 5px 8px; white-space: nowrap; }
+  #focus { display: none; }
+  #tour { bottom: 46px; padding: 12px 14px; width: calc(100% - 16px); }
+  #tour h2 { font-size: 19px; }
+  #tour p { font-size: 13px; line-height: 1.5; }
+  .keys-help { display: none; }
+  .sec { padding: 12px 14px; }
+}
+@media (prefers-reduced-motion: reduce) { #boot { transition: none; } }
+</style>
+
+<div id="app">
+  <div id="stage">
+    <canvas id="gl" aria-label="The NAND-16 computer in 3D. Scroll to zoom into any chip, drag to move, right-drag to rotate."></canvas>
+    <div class="hud" id="brand">
+      <h1><span>NAND<span class="g">-</span>16</span><small id="gatecount">— NAND gates · nothing else</small></h1>
+      <div class="brand-row"><button id="music" class="music" aria-pressed="false" data-i18n-title="music.title"><span class="eq" aria-hidden="true"><i></i><i></i><i></i></span><span class="lbl"></span></button><button id="tour-btn" class="music" data-i18n-title="tour.title"><span class="tri" aria-hidden="true">▶</span><span data-i18n="tour.btn"></span></button><button id="lang" class="music" data-i18n-title="lang.title" data-i18n="lang.btn"></button></div>
+      <nav id="crumbs" aria-label="Zoom path"></nav>
+    </div>
+    <div class="hud" id="views" aria-label="Camera views">
+      <button data-view="overview" data-i18n="view.overview"></button>
+      <button data-view="monitor" data-i18n="view.monitor"></button>
+      <button data-view="CPU">CPU</button>
+      <button data-view="ALU">ALU</button>
+      <button data-view="FA" data-i18n="view.fa"></button>
+      <button data-view="GPU" data-i18n="view.gpu"></button>
+      <button data-view="LANE" data-i18n="view.lane"></button>
+      <button data-view="DEBUG" data-i18n="view.debug"></button>
+      <button data-view="VRAMDIE" data-i18n="view.vram"></button>
+      <button data-view="LATCH" data-i18n="view.latch"></button>
+    </div>
+    <section class="hud" id="focus" aria-live="polite">
+      <div class="top"><h2 id="f-name">MACHINE</h2><span class="count" id="f-count"></span></div>
+      <p id="f-desc"></p>
+      <p class="hint" id="f-hint" data-i18n="hint"></p>
+    </section>
+    <div id="xray" hidden></div>
+    <section class="hud" id="tour" hidden aria-live="polite">
+      <div class="tour-bar"><i id="tour-prog"></i></div>
+      <div class="tour-k" id="tour-k"></div>
+      <h2 id="tour-h"></h2>
+      <p id="tour-p"></p>
+      <div class="tour-ctl"><button id="tour-prev" class="btn" data-i18n="tour.prev"></button><button id="tour-next" class="btn primary"></button><button id="tour-skip" class="btn ghost" data-i18n="tour.skip"></button></div>
+    </section>
+  </div>
+
+  <aside id="panel">
+    <div class="sec">
+      <h3><span data-i18n="sec.display"></span> <em>64×32 · VRAM 0x100–0x17F</em></h3>
+      <div class="monitor" id="monitor"><canvas id="lcd" width="640" height="320"></canvas>
+        <div class="cap"><span data-i18n="lcd.cap"></span><span id="ledrow">LED ○○○○○○○○</span></div></div>
+      <div class="pad" id="pad">
+        <button class="up" data-k="0" data-i18n-aria="pad.up">▲</button>
+        <button class="left" data-k="2" data-i18n-aria="pad.left">◀</button>
+        <button class="down" data-k="1" data-i18n-aria="pad.down">▼</button>
+        <button class="right" data-k="3" data-i18n-aria="pad.right">▶</button>
+        <button class="ba" data-k="4" data-i18n-aria="pad.a">A</button>
+        <button class="bb" data-k="5" data-i18n-aria="pad.b">B</button>
+      </div>
+      <div class="keys-help" data-i18n-html="keys.help"></div>
+    </div>
+
+    <div class="sec">
+      <h3><span data-i18n="sec.clock"></span> <em id="clk-note" data-i18n="clock.note"></em></h3>
+      <div class="ctrl-row">
+        <button class="btn primary" id="run"></button>
+        <button class="btn" id="step-cycle" data-i18n-title="step.cycle.t" data-i18n="step.cycle"></button>
+        <button class="btn" id="step-delay" data-i18n-title="step.delay.t" data-i18n="step.delay"></button>
+        <button class="btn" id="reset" data-i18n-title="reset.t" data-i18n="reset"></button>
+        <button class="btn" id="power" data-i18n-title="power.t" data-i18n="power"></button>
+      </div>
+      <div class="seg" id="speed" role="group" data-i18n-aria="speed.aria">
+        <button data-s="rt" class="on" data-i18n="speed.rt"></button>
+        <button data-s="max" data-i18n="speed.max"></button>
+        <button data-s="40">40 Hz</button>
+        <button data-s="2">2 Hz</button>
+        <button data-s="gate" data-i18n="speed.gate"></button>
+      </div>
+      <div class="slider" id="gate-rate" hidden><label for="rate" data-i18n="rate.label"></label><input type="range" id="rate" min="1" max="240" value="12"><output id="rate-out">12 /s</output></div>
+      <div class="phase" id="phase"></div>
+      <div class="stats">
+        <div class="stat"><b id="s-hz">—</b><span data-i18n="stat.hz"></span></div>
+        <div class="stat"><b id="s-cyc">0</b><span data-i18n="stat.cyc"></span></div>
+        <div class="stat"><b id="s-ev">—</b><span data-i18n="stat.ev"></span></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <h3><span data-i18n="sec.music"></span> <em id="music-state"></em></h3>
+      <div class="ctrl-row music-row">
+        <button class="btn" id="music-toggle" data-i18n="music.toggle"></button>
+        <div class="slider"><label for="vol" data-i18n="music.vol"></label><input type="range" id="vol" min="0" max="100" value="60"></div>
+      </div>
+      <p class="music-note" data-i18n="music.note"></p>
+    </div>
+
+    <div class="sec">
+      <h3><span data-i18n="sec.gpu"></span> <em id="g-state"></em></h3>
+      <dl class="cpu">
+        <dt>PC</dt><dd><span id="g-pc">00</span> <span class="ins" id="g-ins">—</span></dd>
+        <dt data-i18n="gpu.uni"></dt><dd id="g-tu">T=0 U=0</dd>
+      </dl>
+      <div class="glanes" id="g-lanes" data-i18n-aria="gpu.lanes.aria"></div>
+      <details class="gprog"><summary data-i18n="gpu.prog"></summary><div id="g-prog"></div></details>
+    </div>
+
+    <div class="sec" id="lab">
+      <h3><span data-i18n="sec.lab"></span> <em data-i18n="lab.em"></em></h3>
+      <div class="lab-top">
+        <label for="lab-ex" class="sr" data-i18n="lab.ex"></label>
+        <select id="lab-ex"></select>
+        <label class="chk"><input type="checkbox" id="lab-slow"> <span data-i18n="lab.slow"></span></label>
+      </div>
+      <textarea id="lab-src" spellcheck="false" autocomplete="off" autocapitalize="off" rows="14" data-i18n-aria="lab.src"></textarea>
+      <div class="ctrl-row">
+        <button class="btn primary" id="lab-burn" data-i18n="lab.burn"></button>
+        <button class="btn" id="lab-look" data-i18n="lab.look"></button>
+      </div>
+      <div class="lab-msg" id="lab-msg" aria-live="polite"></div>
+      <details class="gprog"><summary data-i18n="lab.syntax"></summary>
+        <div class="isa-wrap"><table class="isa"><tbody data-i18n-html="lab.table"></tbody></table></div>
+        <p class="music-note" data-i18n="lab.area"></p>
+      </details>
+    </div>
+
+    <div class="sec">
+      <h3><span data-i18n="sec.cpu"></span> <em data-i18n="cpu.em"></em></h3>
+      <dl class="cpu">
+        <dt>PC</dt><dd id="c-pc">000</dd>
+        <dt>IR</dt><dd id="c-ir">0000</dd>
+      </dl>
+      <div class="regs" id="regs"></div>
+      <div class="flags" id="flags"><span>Z</span><span>C</span><span>N</span><span>V</span></div>
+    </div>
+
+    <nav class="tabs" role="tablist">
+      <button class="on" data-tab="t-code" role="tab" data-i18n="tab.code"></button>
+      <button data-tab="t-story" role="tab" data-i18n="tab.story"></button>
+      <button data-tab="t-isa" role="tab" data-i18n="tab.isa"></button>
+    </nav>
+    <div class="tab on" id="t-code">
+      <label class="follow"><input type="checkbox" id="follow" checked> <span data-i18n="follow"></span></label>
+      <pre id="code"></pre>
+    </div>
+    <div class="tab" id="t-story"><div class="story" id="story"></div></div>
+    <div class="tab" id="t-isa"><div class="story" id="isa"></div></div>
+  </aside>
+</div>
+
+<div id="boot"><div class="box">
+  <h2>NAND-16</h2>
+  <ol id="boot-steps"></ol>
+  <div class="err" id="boot-err"></div>
+</div></div>
+
+<script type="text/plain" id="os-src">/*OS_SOURCE*/</script>
+<script>
+/*CORE_JS*/
+</script>

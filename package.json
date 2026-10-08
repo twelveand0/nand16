@@ -1,0 +1,11 @@
+{
+  "name": "nand16",
+  "version": "1.0.0",
+  "description": "A complete computer built from nothing but NAND gates, simulated gate by gate in the browser.",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/all.js"
+  },
+  "license": "MIT"
+}
